@@ -64,10 +64,10 @@ for i = 1,#viajes do
 		dd = viajes[i][j][1]
 		 t = viajes[i][j][2]
 		 d = viajes[i][j][3]
-		 y = viajes[i][j+1][3] --la funcion objetivo intenta obtener el porcentaje de avance del bus en el minuto t+1
+		 y = viajes[i][j+1][1] --la funcion objetivo intenta obtener el delta de avance del bus en el minuto t+1
 		--normalizacion
 		table.insert(X, torch.DoubleTensor({T/86400, t/86400, dd/D, d/D})) --t0, t, dd, d
-		table.insert(Y, torch.DoubleTensor({100*y/D})) --d(t+1)
+		table.insert(Y, torch.DoubleTensor({100*y/D})) --dd(t+1) 1 - 100
 	end
 	table.insert(datos, viajes[i][#viajes[i]])
 	table.insert(viajesX, X)
@@ -80,38 +80,32 @@ collectgarbage()
 
 print('Separando datos de validacion')
 
---separacion de los datos para el conjunto de validacion
+--seleccion del conjunto de validacion
+archivo_validacion = io.open('conjunto_validacion.txt','r')
 
-n_validacion = math.floor(0.2*#viajesX)
-
+linea = archivo_validacion:read()
 validacionX = {}
 validacionY = {}
-validacionD = {}
 
-for i = 1, n_validacion do
-	indice = math.random(#viajesX)
-	X = table.remove(viajesX, indice)
-	Y = table.remove(viajesY, indice)
-	D = table.remove(datos, indice)
-
-	table.insert(validacionX, X)
-	table.insert(validacionY, Y)
-	table.insert(validacionD, D)
+while linea ~= nil do
+	linea = split(linea, '\t')
+	linea[1] = tonumber(linea[1])
+	linea[2] = tonumber(linea[2])
+	linea[3] = tonumber(linea[3])
+	linea[4] = tonumber(linea[4])
+	linea[5] = tonumber(linea[5])
+	for i = 1, #datos do
+		if datos[i][1] == linea[1] and datos[i][2] == linea[2] and datos[i][3] == linea[3] and datos[i][4] == linea[4] and datos[i][5] == linea[5] then
+			table.insert(validacionX, viajesX[i])
+			table.insert(validacionY, viajesY[i])
+			table.remove(viajesX,i)
+			table.remove(viajesY,i)
+			table.remove(datos,i)
+			break
+		end
+	end
+	linea = archivo_validacion:read()
 end
-
-datos = nil
-collectgarbage()
-
---registro de los viajes usados para validar
-
-escritura_validacion = io.open('conjunto_validacion.txt','w')
-for i = 1, #validacionD do
-	escritura_validacion:write(validacionD[i][1]..'\t'..validacionD[i][2]..'\t'..validacionD[i][3]..'\t'..validacionD[i][4]..'\t'..validacionD[i][5]..'\n')
-end
-escritura_validacion:close()
-
-validacionD = nil
-collectgarbage()
 
 --asignacion de los folds
 
@@ -128,6 +122,8 @@ while #viajesX > 0 do
 			indice = math.random(#viajesX)
 			table.insert(foldsX[i], table.remove(viajesX, indice))
 			table.insert(foldsY[i], table.remove(viajesY, indice))
+			table.remove(viajesX, indice)
+			table.remove(viajesY, indice)
 		end
 	end
 end
